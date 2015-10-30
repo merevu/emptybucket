@@ -1,0 +1,19 @@
+{
+  "DEFAULT": {
+    "NUM_THREAD": 100,
+    "NUM_DELETE_PER_JOB": 1000
+  },
+  "TARGET":{
+    "s3": {
+      "AWS_ACCESS_KEY": "......",
+      "AWS_ACCESS_SECRET_KEY": "......"
+    },
+    "gcs": {
+      "USER": "......",
+      "PW": ".......",
+      "HOST": "storage.googleapis.com",
+      "PORT": "80"
+    }
+  }
+}
+
