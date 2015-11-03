@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import threading
+import time
 import Queue
 
 from optparse import OptionParser
@@ -28,8 +29,8 @@ class DeleteBucket:
             parser = OptionParser("""
  python delete.py -f [CONFIG] -t [TARGET] -b [BUCKET]
 """)
-            parser.add_option('-f', '--config', type="str", dest="config", default="config.json", help="config file path.")
-            parser.add_option('-t', '--target', type="str", dest="target", default="s3", help="target to request.")
+            parser.add_option('-f', '--config', type="str", dest="config", default="config.json", help="config file path. Default is './config.json'")
+            parser.add_option('-t', '--target', type="str", dest="target", default="s3", help="target to request. Default is 's3'")
             parser.add_option('-v', '--verbose', action="store_true", default=False, help="verbose on/off.")
             parser.add_option('-b', '--bucket', type="str", dest="bucket", help="arguments")
             parser.add_option('-s', '--ssl', action="store_true", default=False, help="using https connect.")
@@ -89,36 +90,19 @@ class DeleteBucket:
         bucket_name = self.bucket
 
         queue = Queue.Queue()
-        threads = []
-
-        for seq in range(self.NUM_THREAD):
-            t = DeleteJob(queue)
-            threads.append(t)
-            t.start()
 
         _bucket = self.conn.get_bucket(bucket_name)
         resultset = _bucket.list()
 
-        cnt = 0
-        dlist = []
-        queue_cnt = 0
+        for seq in range(self.NUM_THREAD):
+            t = DeleteJob(queue)
+            t.start()
+
         for idx in resultset:
-            dlist.append(idx.name)
-            cnt += 1
-            if cnt == self.NUM_DELETE_PER_JOB:
-                print 'put delete task into queue...'
-                queue.put({'bucket':_bucket, 'dlist': dlist})
-                queue_cnt += 1
-                dlist = []
-                cnt = 0
+            queue.put({'bucket':_bucket, 'dlist': [idx.name]})
 
-            if queue_cnt == self.NUM_THREAD:
-                print '------------- join queue --------------'
-                queue.join()
-                queue_cnt = 0
-
-        print _bucket.delete()
-
+        queue.join()
+        #print _bucket.delete()
 
 class DeleteJob(threading.Thread):
     def __init__(self, queue):
@@ -129,13 +113,17 @@ class DeleteJob(threading.Thread):
         while True:
             queue = self.queue.get()
             try:
-                print '%s %s' % (self, queue['bucket'].delete_keys(queue['dlist']))
+                result = queue['bucket'].delete_keys(queue['dlist'])
+                print '%s %s' % (self, result)
             except:
                 for key in queue['dlist']:
-                   print '%s %s' % (self, queue['bucket'].delete_key(key))
+                    result = queue['bucket'].delete_key(key)
+                    print '%s %s' % (self, result)
             self.queue.task_done()
 
 
 if __name__ == '__main__':
-    sys.exit(DeleteBucket().main())
+    start = time.time()
+    DeleteBucket().main()
+    print '%d sec(s) elapsed..' % (time.time() - start)
 
