@@ -102,6 +102,10 @@ class DeleteBucket:
             queue.put({'bucket':_bucket, 'dlist': [idx.name]})
 
         queue.join()
+
+        for seq in range(self.NUM_THREAD):
+            queue.put({'stop': True})
+
         #print _bucket.delete()
 
 class DeleteJob(threading.Thread):
@@ -112,6 +116,11 @@ class DeleteJob(threading.Thread):
     def run(self):
         while True:
             queue = self.queue.get()
+
+            if queue['stop']:
+                self.queue.task_done()
+                break
+
             try:
                 result = queue['bucket'].delete_keys(queue['dlist'])
                 print '%s %s' % (self, result)
