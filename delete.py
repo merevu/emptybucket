@@ -95,11 +95,11 @@ class DeleteBucket:
         resultset = _bucket.list()
 
         for seq in range(self.NUM_THREAD):
-            t = DeleteJob(queue)
+            t = DeleteJob(queue, verbose=self.DEBUG)
             t.start()
 
         for idx in resultset:
-            queue.put({'bucket':_bucket, 'dlist': [idx.name]})
+            queue.put({'bucket':_bucket, 'dlist': [idx.name], 'stop': False})
 
         queue.join()
 
@@ -109,9 +109,14 @@ class DeleteBucket:
         #print _bucket.delete()
 
 class DeleteJob(threading.Thread):
-    def __init__(self, queue):
+    def __init__(self, queue, **kargs):
         threading.Thread.__init__(self)
         self.queue = queue
+
+        if kargs['verbose'] == 2:
+            self.verbose = True
+        else:
+            self.verbose = False
 
     def run(self):
         while True:
@@ -123,11 +128,13 @@ class DeleteJob(threading.Thread):
 
             try:
                 result = queue['bucket'].delete_keys(queue['dlist'])
-                print '%s %s' % (self, result)
+                if self.verbose:
+                    print '%s %s' % (self, result)
             except:
                 for key in queue['dlist']:
                     result = queue['bucket'].delete_key(key)
-                    print '%s %s' % (self, result)
+                    if self.verbose:
+                        print '%s %s' % (self, result)
             self.queue.task_done()
 
 
